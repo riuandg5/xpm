@@ -44,7 +44,7 @@ Usage: xpm <project_name> [project_type]
 
 ## Project Structures
 
--   pl
+-   pl Project
 
     ```sh
     ex_pl
@@ -61,7 +61,7 @@ Usage: xpm <project_name> [project_type]
     └───vivado_project
     ```
 
--   ps
+-   ps Project
 
     ```sh
     ex_ps
@@ -72,7 +72,7 @@ Usage: xpm <project_name> [project_type]
     └───images
     ```
 
--   pspl
+-   pspl Project
 
     ```sh
     ex_pspl
@@ -172,55 +172,67 @@ $ vivado -source build_project.tcl
     file mkdir $env(XILINX_VIVADO)/NO_ACCESS_LOCATION/test
 
     # now set this directory as default IP location
+    # Tools > Settings > IP > Default IP Location
 
     # use the following to reset permissions [WINDOWS]
     # exec icacls $env(XILINX_VIVADO)/NO_ACCESS_LOCATION /reset /t /c
     ```
 
-    Now if you miss to set the IP location to `ip` while adding a new IP from catalog then it will throw the error in TCL Console.
+    Now if you miss to set the IP location to `ip` while adding a new IP from catalog then it will simply not suceed (without any popup) and throw the error in TCL Console.
 
-### Exporting Hardware Description File
-
--   Select `File > Export > Export Hardware`.
--   Check `Include bitstream`.
--   Export to location of `ps` project.
-
-    > Note: Keep .hdf file in root of `ps` projects.
-
-## ps Project Guide
+## Moving From pl To ps Project
 
 ```sh
 # create ps project
 $ xpm ex_ps ps
-
-# open sdk
-$ cd ex_ps
-$ xsdk -workspace . -hwspec design.hdf
 ```
 
-> Note: \*.hdf is the hardware description file exported from the pl project.
+### Export Hardware Description File From Vivado
+
+-   Select `File > Export > Export Hardware`.
+-   Check `Include bitstream`.
+-   Export to the root of `ex_ps` project.
+
+## ps Project Guide
+
+```sh
+# open sdk
+$ cd ex_ps
+$ xsdk -workspace .
+```
+
+### Setting Up The SDK Project
+
+1. Create Hardware Project
+
+    - Select `File > New > Project > Xilinx > Hardware Platform Specification`.
+    - In `Target Hardware Specification` browse to `ex_ps` and select `.hdf` file which was exported from the `ex_pl` project.
+    - `Project name` will be set automatically as `<hdf_file_name_hw_platform_n>`.
+        > Note: If you are manually setting the project name then do sufix it with `_hw or _hw_platform or _hw_project` so that default `.gitignore` can ignore this project from tracking else modify `.gitignore` accordingly.
+    - Hardware project will appear in the Project Explorer of SDK.
+
+2. Create Board Support Package Project
+
+    - Select `File > New > Board Support Package`.
+    - Give it a name and check `Use default location`.
+        > Note: Add `_bsp` as suffix in the name for default `.gitignore` to work properly else modify `.gitignore` accordingly.
+    - Select `Hardware Platform`, `CPU cores`, and `BSP OS`.
+    - BSP will appear in the Project Expolrer of SDK.
+    - Modify `bsp > system.mss` as needed.
+
+3. Creating Application Project
+
+    - Select `File > New > Application Project`.
+    - Give it a name and check `Use default location`.
+    - Select `OS Platform`, `Target Hardware`, `Target Software`, and `BSP`.
+    - Select `Template` to start with.
 
 ### Launching SDK (From Vivado)
 
 -   Select `File > Launch SDK` in Vivado.
 -   Set `Exported Location` to `ex_ps`.
 -   Set `Workspace` to `ex_ps`.
--   Hardware platform will appear in the Project Explorer of SDK.
-
-## Creating BSP
-
--   Select `File > New > Board Support Package`.
--   Give it a name and check `Use default location`.
--   Select `Hardware Platform`, `CPU cores`, and `BSP OS`.
--   BSP will appear in the Project Expolrer of SDK.
--   Modify `bsp > system.mss` as needed.
-
-## Creating Application Project
-
--   Select `File > New > Application Project`.
--   Give it a name and check `Use default location`.
--   Select `OS Platform`, `Target Hardware`, `Target Software`, and `BSP`.
--   Select `Template` to start with.
+-   SDK will open and hardware project will appear in the Project Explorer of SDK with name like `<hdf_file_name_hw_platform_n>`.
 
 ### Re-building Project
 
@@ -228,7 +240,38 @@ $ xsdk -workspace . -hwspec design.hdf
 $ cd ex_ps
 $ git clean -Xdn # to preview which gitignored files will be removed
 $ git clean -Xdf # to force removal of the above listed files
-$ xsct build_workspace.tcl
 
-# After opening of SDK, build all projects
+# use build_workspace.tcl to setup the workspace
+$ xsct build_workspace.tcl
+# note: the TCL script assumes that there is only one .hdf file preseent in the root of ps project.
+# if no .hdf file is present then first export from vivado to root of ps project
+# if more than one .hdf files are presemt then use the next method
+
+# OR
+
+# open workspace and follow steps in SDK GUI to recreate hardware project and import existing bsp and application projects
+$ xsdk -workspace .
+
 ```
+
+### SDK GUI Steps To Recover Workspace
+
+1. Recreate hardware project
+
+    - Select `File > New > Project > Xilinx > Hardware Platform Specification`.
+    - In `Target Hardware Specification` browse to `ex_ps` and select `.hdf` file which was exported from the `ex_pl` project.
+    - `Project name` will be set automatically as `<hdf_file_name_hw_platform_n>`.
+        > Note: You can also set it manually to what your BSP and Application Projects assume it to be.
+    - Hardware project will appear in the Project Explorer of SDK.
+
+2. Import existing BSP and Application Projects
+
+    - Select `File > Import > General > Existing Projects into Workspace`.
+    - Select `root drectory` to `ex_ps`.
+    - Check the projects to import.
+
+3. Changing references
+    - If you have created hardware project with a different name then you have to refer to it after importing existing BSP project.
+        - Right click on BSP project and select `Properties > Project References`.
+        - Check the new hardware project and uncheck the old one.
+    - You can also change the reference BSP of an Application Project in the same way.
